@@ -75,8 +75,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// Use Railway's assigned PORT
+// ONLY use Railway-assigned port
 const PORT = process.env.PORT;
+
 if (!PORT) {
   console.error("ERROR: process.env.PORT is not defined! Railway requires it.");
   process.exit(1);
