@@ -1,3 +1,4 @@
+
 import express from "express";
 import { Server } from "socket.io";
 import http from "http";
@@ -75,12 +76,5 @@ io.on("connection", (socket) => {
   });
 });
 
-// ONLY use Railway-assigned port
+// Use ONLY Railway-assigned port
 const PORT = process.env.PORT;
-
-if (!PORT) {
-  console.error("ERROR: process.env.PORT is not defined! Railway requires it.");
-  process.exit(1);
-}
-
-server.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
