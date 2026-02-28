@@ -78,3 +78,9 @@ io.on("connection", (socket) => {
 
 // Use ONLY Railway-assigned port
 const PORT = process.env.PORT;
+// Use Railway's assigned PORT or default to 8080 for local
+const PORT = process.env.PORT || 8080;
+
+server.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});
