@@ -1,69 +1,85 @@
-// index.js
 import express from "express";
-import http from "http";
 import { Server } from "socket.io";
+import http from "http";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 
-dotenv.config(); // Load API key from .env
+dotenv.config();
 
 const app = express();
-app.use(cors());
-app.use(express.json()); // JSON parsing
-
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*" } // Allow all frontend origins
-});
-
-// Initialize OpenAI
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// -------------------------
-// API ENDPOINTS
-// -------------------------
-
-// AI Chat Endpoint
-app.post("/api/ai", async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-    });
-    res.json({ text: completion.choices[0].message.content });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "AI request failed" });
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
   }
 });
 
-// -------------------------
-// WebSocket for real-time
-// -------------------------
+// Initialize OpenAI with API key from Railway env
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+app.use(cors());
+app.use(express.json());
+
+// Health check
+app.get("/", (req, res) => {
+  res.json({ status: "Jarvis Omega Backend Running" });
+});
+
+// AI Chat endpoint
+app.post("/chat", async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "No message provided" });
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "user", content: message }]
+    });
+
+    res.json({ reply: response.choices[0].message.content });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "AI response failed" });
+  }
+});
+
+// Socket.io real-time for voice/gestures
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
-  // Voice streaming
-  socket.on("voice-stream", (data) => {
-    // TODO: process voice chunks with AI / TTS
-    io.emit("voice-response", { text: "Processing voice..." });
+  // Voice message event
+  socket.on("voiceMessage", async (data) => {
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [{ role: "user", content: data }]
+      });
+      socket.emit("voiceReply", response.choices[0].message.content);
+    } catch (err) {
+      socket.emit("voiceReply", "Error processing AI message");
+    }
   });
 
-  // Gesture updates
-  socket.on("gesture", (gestureData) => {
-    // Broadcast gesture to all clients
-    io.emit("gesture-update", gestureData);
+  // Gesture placeholder
+  socket.on("gesture", (data) => {
+    console.log("Gesture event:", data);
+    // You can add logic here for gesture recognition
   });
 
-  // Optional: face auth events
-  socket.on("face-auth", (faceData) => {
-    // TODO: process face embedding → auth
-    io.emit("face-auth-result", { status: "unknown" });
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
   });
 });
 
-// Start server
-const PORT = process.env.PORT || 3000;
+// Use Railway's assigned PORT
+const PORT = process.env.PORT;
+if (!PORT) {
+  console.error("ERROR: process.env.PORT is not defined! Railway requires it.");
+  process.exit(1);
+}
+
 server.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
